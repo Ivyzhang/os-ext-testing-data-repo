@@ -1,0 +1,80 @@
+script-dir: /etc/nodepool/scripts
+elements-dir: /etc/nodepool/elements
+images-dir: /opt/nodepool_dib
+dburi: 'mysql://nodepool:<%= mysql_password %>@localhost/nodepool'
+
+cron:
+  cleanup: '*/1 * * * *'
+  check: '*/15 * * * *'
+  image-update: '14 14 * * *'
+
+zmq-publishers:
+  - tcp://localhost:8888
+
+gearman-servers:
+  - host: <%= gearman_server %>
+
+labels:
+  - name: d-p-c
+    image: dpc
+    min-ready: 2
+    providers:
+      - name: local_01
+
+  - name: d-p-c-fc
+    image: dpc
+    min-ready: 1
+    providers:
+      - name: local_01_fc
+
+diskimages:
+    - name: dpc
+      elements:
+        - ubuntu
+        - vm
+        - openstack-repos
+        - puppet
+        - nodepool-base
+        - node-devstack
+      release: trusty
+      env-vars:
+        TMPDIR: /opt/dib_tmp
+        DIB_IMAGE_CACHE: /opt/dib_cache
+
+providers:
+  - name: local_01
+    username: '<%= provider_username %>'
+    password: '<%= provider_password %>'
+    auth-url: 'http://localhost:5000/v2.0'
+    project-id: 'admin'
+    max-servers: 2
+    images:
+      - name: dpc
+        min-ram: 8192
+        diskimage: dpc
+        username: jenkins
+        private-key: '/home/nodepool/.ssh/id_rsa'
+
+# Due to the nature of FC passthrough, at most n nodes per blade can be enabled.
+# To acheive this with nodepool, create a "new" provider with max-server : n
+# and this single image.
+  - name: local_01_fc
+    username: '<%= provider_username %>'
+    password: '<%= provider_password %>'
+    auth-url: 'http://localhost:5000/v2.0'
+    project-id: 'admin'
+    max-servers: 1
+    images:
+      - name: dpc
+        min-ram: 8192
+        diskimage: dpc
+        username: jenkins
+        private-key: '/home/nodepool/.ssh/id_rsa'
+
+targets:
+  - name: local-jenkins
+    jenkins:
+      url: 'http://localhost:8080/'
+      user: '<%= jenkins_api_user %>'
+      apikey: '<%= jenkins_api_key %>'
+      credentials-id: '<%= jenkins_credentials_id %>'
